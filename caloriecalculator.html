@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小明的一日卡路里與七大營養素大冒險</title>
+    <style>
+        body {
+            font-family: 'Arial', 'Microsoft JhengHei', sans-serif;
+            background-color: #f8fafc; color: #1e293b; margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .game-container {
+            max-width: 750px; width: 100%; background: white; padding: 25px;
+            border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 3px solid #64748b;
+            position: relative;
+        }
+        h1 { color: #334155; text-align: center; margin-top: 0; font-size: 24px; }
+        
+        .timeline { display: flex; justify-content: space-between; margin: 20px 0; background: #e2e8f0; padding: 10px; border-radius: 20px; }
+        .time-node { padding: 5px 10px; border-radius: 15px; font-weight: bold; font-size: 12px; color: #64748b; }
+        .time-node.active { background: #475569; color: white; }
+
+        .current-calories-box {
+            background: #f0fdf4; border: 2px solid #22c55e; color: #166534;
+            padding: 12px; border-radius: 8px; text-align: center; font-weight: bold;
+            font-size: 16px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .story-text { background: #f1f5f9; border-left: 5px solid #64748b; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 15px; line-height: 1.6; }
+        .section-title { font-size: 18px; font-weight: bold; color: #1e3a8a; margin: 15px 0 10px 0; }
+        
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .card {
+            border: 2px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center;
+            cursor: pointer; background: #f8fafc; transition: all 0.2s; user-select: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .card:hover { transform: scale(1.03); background: #f1f5f9; }
+        .card.selected { border-color: #3b82f6; background-color: #eff6ff; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+        
+        .card .emoji { font-size: 34px; margin-bottom: 5px; }
+        .card .name { font-weight: bold; font-size: 14px; }
+        .card .weight { font-size: 11px; color: #0284c7; font-weight: bold; margin: 2px 0; }
+        .card .info { font-size: 13px; color: #475569; font-weight: bold; }
+
+        .time-select-container {
+            background: #f0fdfa; border: 2px solid #0d9488; border-radius: 8px;
+            padding: 12px; margin-bottom: 15px; text-align: center; font-weight: bold;
+        }
+        .time-select-container select {
+            padding: 6px 12px; font-size: 15px; border-radius: 6px; border: 2px solid #0d9488; font-weight: bold; color: #0f766e;
+        }
+
+        .lunch-tooltip {
+            position: absolute; background: #1e293b; color: #f1f5f9;
+            padding: 15px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            z-index: 999; pointer-events: none; opacity: 0; transition: opacity 0.15s, transform 0.15s;
+            width: 280px; font-size: 13px; line-height: 1.6; text-align: left; transform: translateY(10px);
+            border: 1px solid #475569;
+        }
+        .lunch-tooltip.visible { opacity: 1; transform: translateY(0); }
+        .tooltip-title { font-weight: bold; font-size: 14px; border-bottom: 1px dashed #64748b; padding-bottom: 5px; margin-bottom: 8px; color: #3b82f6; }
+
+        .feeding-zone {
+            background: #fff7ed; border: 3px dashed #f97316; border-radius: 16px;
+            padding: 20px; margin-top: 20px; text-align: center;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        .character-box { position: relative; width: 140px; height: 160px; margin: 15px 0; }
+        
+        .char-hair { 
+            position: absolute; top: 25px; left: 26px; width: 92px; height: 35px; 
+            background: #334155; border-radius: 46px 46px 0 0; z-index: 10; 
+        }
+        .char-head { position: absolute; top: 25px; left: 25px; width: 90px; height: 90px; background: #ffedd5; border-radius: 50%; border: 3px solid #e2e8f0; z-index: 2; }
+        
+        .char-eye { position: absolute; top: 48px; width: 12px; height: 12px; background: #1e293b; border-radius: 50%; }
+        .char-eye.left { left: 20px; } 
+        .char-eye.right { right: 20px; }
+        
+        .char-blush { position: absolute; top: 62px; width: 14px; height: 8px; background: #fca5a5; border-radius: 50%; opacity: 0.7; }
+        .char-blush.left { left: 14px; } .char-blush.right { right: 14px; }
+        
+        .char-mouth-target { 
+            position: absolute; top: 70px; left: 30px; width: 26px; height: 14px; 
+            background: #991b1b; border-radius: 0 0 20px 20px; border: 2px solid #7f1d1d;
+            transition: all 0.2s; box-shadow: inset 0 3px 5px rgba(0,0,0,0.2);
+        }
+        .char-mouth-target.drag-over { transform: scale(1.0); background: #000; border-radius: 50%; height: 26px; top: 64px; }
+        .char-mouth-target.eating { animation: chew 0.4s ease infinite; }
+        @keyframes chew { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.3); } }
+
+        .char-body { position: absolute; bottom: 0; left: 20px; width: 100px; height: 50px; background: #3b82f6; border-radius: 30px 30px 0 0; z-index: 1; }
+
+        .draggable-food-container { display: flex; justify-content: center; gap: 15px; margin-top: 15px; flex-wrap: wrap; }
+        .drag-food-item {
+            background: white; border: 2px solid #f97316; padding: 12px 18px; border-radius: 12px;
+            font-weight: bold; cursor: grab; display: flex; flex-direction: column; align-items: center; gap: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); user-select: none; transition: transform 0.2s, border-color 0.2s;
+            min-width: 160px; text-align: center;
+        }
+        .drag-food-item:hover { border-color: #3b82f6; background-color: #f0f9ff; transform: translateY(-2px); }
+        .drag-food-item:active { cursor: grabbing; transform: scale(0.95); }
+        .drag-food-item.fed { opacity: 0.2; cursor: not-allowed; pointer-events: none; border-color: #cbd5e1; background: #f1f5f9; }
+        .drag-food-item .food-cal { color: #22c55e; font-size: 13px; margin-top: 2px; }
+
+        .teatime-choice-box { display: flex; justify-content: center; gap: 20px; margin: 20px 0; }
+        .choice-btn {
+            padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 10px;
+            cursor: pointer; border: 2px solid #cbd5e1; background: #f8fafc; transition: all 0.2s;
+        }
+        .choice-btn.yes { border-color: #eab308; color: #854d0e; background: #fef9c3; }
+        .choice-btn.yes:hover { background: #fef08a; }
+        .choice-btn.no { border-color: #ef4444; color: #991b1b; background: #fee2e2; }
+        .choice-btn.no:hover { background: #fecaca; }
+
+        .math-zone {
+            background: #edd8ff; padding: 20px; border-radius: 12px; border: 3px dashed #9333ea;
+            margin-top: 25px; text-align: center;
+        }
+        .math-line-container {
+            border-top: 2px solid #6b21a8; border-bottom: 2px solid #6b21a8;
+            padding: 15px 0; margin: 15px 0; background-color: #f5e6ff;
+        }
+        .sub-math-row { margin: 12px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .equation { font-size: 22px; font-weight: bold; color: #6b21a8; min-height: 30px; }
+        input[type="number"] { width: 120px; padding: 8px; font-size: 20px; text-align: center; border: 2px solid #9333ea; border-radius: 8px; }
+        
+        button.action-btn {
+            background-color: #475569; color: white; border: none; padding: 14px 20px;
+            font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 15px;
+        }
+        button.action-btn:hover { background-color: #334155; }
+        
+        .restart-btn {
+            background-color: #ef4444; color: white; width: auto; font-size: 13px; padding: 6px 12px;
+            margin: 0; position: absolute; top: 25px; right: 25px; border-radius: 6px; border: none; cursor: pointer;
+        }
+        .restart-btn:hover { background-color: #dc2626; }
+
+        .feedback { margin-top: 20px; padding: 20px; border-radius: 8px; display: none; line-height: 1.6; }
+        .success { background-color: #dcfce7; color: #166534; border: 2px solid #22c55e; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 2px solid #ef4444; }
+        
+        .summary-food-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; }
+        .summary-food-item {
+            background: #ffffff; border: 2px solid #cbd5e1; border-radius: 8px; padding: 10px;
+            cursor: pointer; text-align: left; font-weight: bold; display: flex; align-items: center; gap: 8px;
+            transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .summary-food-item:hover { background: #f1f5f9; border-color: #3b82f6; transform: translateY(-2px); }
+        .nutrient-display-box {
+            background: #f8fafc; border: 2px solid #3b82f6; border-radius: 10px; padding: 15px;
+            margin-top: 15px; text-align: left; display: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .nutrient-title { font-size: 16px; font-weight: bold; color: #1e3a8a; margin-bottom: 8px; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; }
+        .nutrient-tag { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 20px; font-size: 13px; margin: 4px 4px 12px 4px; font-weight: bold; border: 1px solid #bae6fd; }
+        .nutrient-desc { font-size: 14px; color: #334155; line-height: 1.6; background: white; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e1; }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <button class="restart-btn" onclick="restartGame()">🔄 重新開始</button>
+    <h1>🍱 小明的一日卡路里與七大營養素大冒險</h1>
+    
+    <div class="timeline">
+        <div class="time-node active" id="node-0">🎒 早餐</div>
+        <div class="time-node" id="node-1">🍱 午餐</div>
+        <div class="time-node" id="node-2">🏃 活動</div>
+        <div class="time-node" id="node-3">☕ 下午茶</div>
+        <div class="time-node" id="node-4">🌌 晚餐</div>
+        <div class="time-node" id="node-5">🏆 總結算</div>
+    </div>
+
+    <div class="current-calories-box" id="current-calories-display">
+        增長進度 ➔ 目前體內累積熱量：0 kcal
+    </div>
+
+    <div class="story-text" id="story-display">遊戲載入中...</div>
+
+    <div id="game-play-zone"></div>
+
+    <div class="feeding-zone" id="feeding-zone" style="display:none;">
+        <div style="font-weight: bold; color: #c2410c; margin-bottom: 5px;" id="feeding-status">請把下方的食物拖拽到小明的嘴巴裡！</div>
+        <div class="equation" id="feeding-equation-display" style="color: #ea580c; font-size: 24px; margin-bottom: 10px;">...</div>
+        
+        <div class="character-box">
+            <div class="char-hair"></div>
+            <div class="char-body"></div>
+            <div class="char-head">
+                <div class="char-eye left"></div>
+                <div class="char-eye right"></div>
+                <div class="char-blush left"></div>
+                <div class="char-blush right"></div>
+                <div class="char-mouth-target" id="mouth-target" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="dropFood(event)"></div>
+            </div>
+        </div>
+
+        <div class="draggable-food-container" id="draggable-food-holder"></div>
+    </div>
+
+    <div class="math-zone" id="math-zone" style="display:none;">
+        <p>🧠 <b id="math-title">請計算卡路里：</b></p>
+        <div class="math-line-container" id="math-lines-holder"></div>
+        <button class="action-btn" id="verify-btn" onclick="checkStageAnswer()" style="background-color: #9333ea; margin-top: 5px;">提交答案並驗證 ➔</button>
+    </div>
+
+    <div class="feedback" id="feedback-box"></div>
+    <button class="action-btn" id="next-stage-btn" style="display:none; background-color: #2563eb;" onclick="goToNextStage()">前往下一階段 ➔</button>
+</div>
+
+<div id="lunch-tooltip" class="lunch-tooltip"></div>
+
+<script>
+const stages = [
+    {
+        name: "breakfast",
+        type: "food",
+        story: "☀️ <b>第一站（早餐）：</b><br>時鐘剛過七點，新的一天又開始了。小明揉揉眼睛，坐到餐桌前，眼前擺滿了不同的早餐選擇。請你幫他從這些食物中，挑出剛剛好 3 種，讓他活力滿滿的出門去上學。",
+        mathTitle: "請計算早餐 3 種食物的總熱量：",
+        options: [
+            { calories: 132, name: '白方包', weight: '2片', emoji: '🍞', nutrients: ['碳水化合物'], desc: '主要提供碳水化合物，可以給你早上需要的能量。屬於精緻澱粉，消化比較快，如果配顆蛋或塗一點點油一起吃，比較不會那麼快就餓了。' },
+            { calories: 139, name: '低脂牛奶', weight: '1盒', emoji: '🥛', nutrients: ['蛋白質', '水分', '礦物質'], desc: '含有蛋白質、水分和礦物質（鈣質），對骨頭和肌肉都很重要。低脂版本減少了脂肪的攝取，是早餐常見的飲料。' },
+            { calories: 180, name: '煎太陽蛋', weight: '2隻', emoji: '🍳', nutrients: ['蛋白質', '維生素', '脂肪'], desc: '含有蛋白質和維生素。煎的時候油放多放少，脂肪含量會差很多，記得用適量的油就好。' },
+            { calories: 350, name: '菠蘿包', weight: '1個', emoji: '🥯', nutrients: ['碳水化合物', '脂肪'], desc: '含有碳水化合物和脂肪。菠蘿皮是用豬油和糖做的，屬於高熱量的選擇。偶爾吃一個可以，不建議天天當早餐。' },
+            { calories: 150, name: '燕麥粥', weight: '1碗', emoji: '🌾', nutrients: ['碳水化合物', '膳食纖維'], desc: '含有碳水化合物 Pillars 和膳食纖維，可以讓肚子有飽足感。是澱粉類食物中不錯的選擇。' },
+            { calories: 240, name: '鮮蝦腸粉', weight: '1碟 (3條)', emoji: '🥢', nutrients: ['碳水化合物', '蛋白質', '礦物質'], desc: '腸粉含有碳水化合物，蝦子含有蛋白質。吃的時候醬油淋太多，鈉含量（礦物質的一種）會跟著變高，可以留意一下。' },
+            { calories: 90, name: '蒸甜玉米', weight: '半條', emoji: '🌽', nutrients: ['碳水化合物', '膳食纖維'], desc: '含有碳水化合物和膳食纖維。屬於原型食物，沒有經過太多加工，可以當作代替白麵包的主食。' },
+            { calories: 90, name: '豆漿', weight: '1杯', emoji: '🥤', nutrients: ['蛋白質', '水分'], desc: '含有蛋白質和水分，是植物性蛋白質的來源。選無糖或低糖的，可以減少糖分的攝取。' },
+            { calories: 208, name: '魚肉燒賣', weight: '1串 (4粒)', emoji: '🥟', nutrients: ['蛋白質', '碳水化合物', '脂肪'], desc: '含有蛋白質、碳水化合物和脂肪。皮和餡料裡面常有比較多的肥肉和澱粉，熱量不算低。一次吃一兩顆就好。' },
+            { calories: 112, name: '巧克力吐司', weight: '1片', emoji: '🍞', nutrients: ['碳水化合物', '脂肪'], desc: '含有碳水化合物和脂肪。巧克力醬裡面有糖也有油。偶爾吃可以，不建議太常吃。' },
+            { calories: 255, name: '巧克力脆片配牛奶', weight: '1碗', emoji: '🥣', nutrients: ['碳水化合物', '蛋白質', '礦物質'], desc: '脆片含有碳水化合物，牛奶含有蛋白質和礦物質。不同品牌的脆片含糖量差很多，可以選擇糖分較低的產品。' },
+            { calories: 240, name: '火腿雞蛋三明治', weight: '1個', emoji: '🥪', nutrients: ['蛋白質', '碳水化合物', '脂肪', '礦物質'], desc: '含有蛋白質、碳水化合物和脂肪。有蛋、有火腿、有麵包，吃一份就有飽足感。火腿是加工食品，鈉含量比較高，可以留意吃的次數。' }
+        ]
+    },
+    {
+        name: "lunch",
+        type: "lunch-special", 
+        story: "🏫 <b>第二站（午餐）：</b><br>校園鐘聲響起，午餐時間到囉！食堂今天準備了 6 款美味套餐，每一款都有不同的配料。把滑鼠移到選項上，仔細看看裡面的材料與熱量，然後選出 1 款套餐，用滑鼠按住它，並把它直接拖進小明的嘴巴裡吧！",
+        mathTitle: "請計算加上午餐後的累積熱量：",
+        options: [
+            { calories: 539, name: '咖喱薯仔雞翼飯套餐', emoji: '🍱', nutrients: ['碳水化合物', '蛋白質', '脂肪', '礦物質'], desc: '白飯和薯仔提供碳水化合物，雞翼含有蛋白質和脂肪。咖喱醬裡面通常有比較多的油脂和鹽分，拌飯的時候不要加太多醬汁。',
+              setDetails: "🍚 白飯：1碗 / 190 kcal<br>🍗 咖喱薯仔雞翼：1盤 (2隻雞翼及半個薯仔) / 295 kcal<br>🌽 玉米粒：1小杯 / 54 kcal", mathFormula: "190 + 295 + 54 = " },
+            { calories: 493, name: '玉米汁肉粒配通粉套餐', emoji: '🍱', nutrients: ['碳水化合物', '蛋白質', '膳食纖維', '維生素'], desc: '通粉提供碳水化合物，肉粒含有蛋白質，椰菜可以補充膳食纖維和維生素。玉米汁肉粒喝起來甜甜的，不過要留意醬汁裡面可能加了奶油和糖。',
+              setDetails: "🥣 通粉：1碗 / 165 kcal<br>🥬 椰菜：半碗 / 18 kcal<br>🥩 玉米汁肉粒：1份 / 310 kcal", mathFormula: "165 + 18 + 310 = " },
+            { calories: 626, name: '芝士漢堡薯條套餐', emoji: '🍔', nutrients: ['脂肪', '碳水化合物', '蛋白質'], desc: '漢堡肉、芝士和薯條都含有較高的脂肪，可樂含有大量糖分（碳水化合物），蔬菜量比較少。偶爾吃一次可以，不建議太常吃。',
+              setDetails: "🍔 芝士漢堡：1個 / 294 kcal<br>🍟 細薯條：1包 / 225 kcal<br>🥤 可口可樂：1杯 / 107 kcal", mathFormula: "294 + 225 + 107 = " },
+            { calories: 416, name: '迷你糯米雞套餐', emoji: '🍙', nutrients: ['碳水化合物', '蛋白質', '維生素'], desc: '糯米提供碳水化合物，肉類含有蛋白質，葡萄和紅蘿蔔可以補充維生素。糯米比較不好消化，腸胃敏感的話記得不要吃太多。',
+              setDetails: "🍚 迷你糯米雞(含雞肉及冬菇)：2個 / 356 kcal<br>🍇 葡萄：10顆 / 40 kcal<br>🥕 紅蘿蔔：半根 / 20 kcal", mathFormula: "356 + 40 + 20 = " },
+            { calories: 348, name: '鮮茄汁牛肉配燕麥飯套餐', emoji: '🍛', nutrients: ['蛋白質', '碳水化合物', '維生素', '膳食纖維', '礦物質'], desc: '燕麥飯含有膳食纖維，牛肉含有蛋白質和礦物質（鐵質），番茄含有維生素。整體來說油脂比例比較低，是營養較均衡的組合。',
+              setDetails: "🥩 番茄牛肉：1小碟 / 190 kcal<br>🌾 燕麥飯：1碗 / 140 kcal<br>🥬 生菜：半碗 / 18 kcal", mathFormula: "190 + 140 + 18 = " },
+            { calories: 453, name: '香蒜餐包配拿破崙香腸意粉套餐', emoji: '🍝', nutrients: ['碳水化合物', '脂肪', '蛋白質', '礦物質'], desc: '意粉 and 餐包提供碳水化合物，香腸含有蛋白質和脂肪。拿破崙醬裡面常有糖分，香腸是加工肉品，整份的鈉含量比較高，可以適量吃。',
+              setDetails: "🥖 香蒜餐包：1個 / 84 kcal<br>🥢 意粉：1盤 / 236 kcal<br>🌭 香腸及番茄醬：1條 / 133 kcal", mathFormula: "84 + 236 + 133 = " }
+        ]
+    },
+    {
+        name: "activity",
+        type: "activity",
+        story: "🏃 <b>第三站（放學活動）：</b><br>下課鈴聲響起，終於放學啦！今天的天氣很好，小明想先選一個課後活動。請幫他決定，今天放學後要做什麼呢？",
+        mathTitle: "請計算減去活動消耗後的熱量：",
+        selectedMultiplier: 1, 
+        selectedDurationText: "30分鐘",
+        options: [
+            { baseCalories: 173, name: '踢足球', emoji: '⚽', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 186, name: '打籃球', emoji: '🏀', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 142, name: '游泳', emoji: '🏊', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 115, name: '打羽毛球', emoji: '🏸', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 120, name: '跳舞班', emoji: '🕺', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 189, name: '跳繩', emoji: '🤸', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 129, name: '去公園玩耍', emoji: '🚶', desc: '運動能讓雙腳變得很有力氣，心臟也會像小引擎一樣很有活力，身體會變強壯、不生病。不過如果太陽太大還一直跑、不喝水，身體會流太多汗，可能會頭暈受傷喔。' },
+            { baseCalories: 19, name: '補習', emoji: '📚', desc: '靜靜地看書和畫畫可以讓大腦變聰明，變得更有創意。不過如果看書的地方太暗，或者趴在桌上看，脖子會酸痛，眼睛也會容易近視，看 30 分鐘記得要站起來動一動。' },
+            { baseCalories: 48, name: '繪畫', emoji: '🎨', desc: '靜靜地看書和畫畫可以讓大腦變聰明，變得更有創意。不過如果看書的地方太暗，或者趴在桌上看，脖子會酸痛，眼睛也會容易近視，看 30 分鐘記得要站起來動一動。' },
+            { baseCalories: 62, name: '彈鋼琴', emoji: '🎹', desc: '靜靜地看書和畫畫可以讓大腦變聰明，變得更有創意。不過如果看書的地方太暗，或者趴在桌上看，脖子會酸痛，眼睛也會容易近視，看 30 分鐘記得要站起來動一動。' },
+            { baseCalories: 45, name: '合唱', emoji: '🎤', desc: '靜靜地看書和畫畫可以讓大腦變聰明，變得更有創意。不過如果看書的地方太暗，或者趴在桌上看，脖子會酸痛，眼睛也會容易近視，看 30 分鐘記得要站起來動一動。' }
+        ]
+    },
+    {
+        name: "teatime",
+        type: "food",
+        story: "☕ <b>第四站（下午茶）：</b><br>活動結束後，肚子有點小餓了呢…… 小明看著點心櫃，猶豫著要不要吃點零食。請你幫他做個決定：",
+        mathTitle: "請計算加上下午茶後的熱量：",
+        options: [
+            { calories: 220, name: '酥皮蛋撻', weight: '1個', emoji: '🥧', nutrients: ['脂肪', '碳水化合物'], desc: '含有碳水化合物和脂肪。酥皮用了牛油，屬於熱量比較高的點心。偶爾吃一個就好。' },
+            { calories: 95, name: '蘋果', weight: '1個', emoji: '🍎', nutrients: ['維生素', '膳食纖維', '水分'], desc: '含有維生素、膳食纖維和水分。熱量不高又有飽足感，是很好的點心選擇。' },
+            { calories: 210, name: '雪糕', weight: '1個', emoji: '🍦', nutrients: ['脂肪', '碳水化合物', '水分'], desc: '含有脂肪、碳水化合物、水分和少量蛋白質。脂肪和糖分都偏高，吃太多可能會影響晚餐的食慾。' },
+            { calories: 62, name: '低脂原味乳酪', weight: '1杯', emoji: '🥛', nutrients: ['蛋白質', '礦物質'], desc: '含有蛋白質和礦物質（鈣質），還有益生菌可以幫助腸道健康。選低脂無糖的款式，營養價值會更好。' },
+            { calories: 24, name: '漢堡軟糖', weight: '1顆', emoji: '🍬', nutrients: ['碳水化合物'], desc: '主要含有碳水化合物（糖分），營養價值比較有限。可以減少吃的次數。' },
+            { calories: 198, name: '巧克力餅乾', weight: '3片', emoji: '🍪', nutrients: ['脂肪', '碳水化合物'], desc: '含有碳水化合物和脂肪。油脂和糖分都比較多，一次吃一兩片就好。' }
+        ]
+    },
+    {
+        name: "dinner",
+        type: "food",
+        story: "🌙 <b>第五站（晚餐）：</b><br>晚上回到家，小明滿心歡喜期待和家人一起吃晚餐。這是一天的最後一餐，請幫小明從晚餐選項中，挑出 3 種食物。",
+        mathTitle: "請計算加上晚餐熱量：", 
+        options: [
+            { calories: 62, name: '蒸魚', weight: '兩口', emoji: '🐟', nutrients: ['蛋白質', '水分', '脂肪'], desc: '魚肉含有蛋白質和水分，也含有對身體有益的脂肪。用清蒸的方式煮，不會額外增加太多油脂，是晚餐常見的菜。' },
+            { calories: 220, name: '青紅蘿蔔豬骨湯', weight: '1碗', emoji: '🥣', nutrients: ['水分', '維生素', '脂肪'], desc: '青紅蘿蔔含有維生素和水分，豬骨熬久了湯裡會跑出脂肪。喝之前把表面的浮油撇掉，可以減少脂肪的攝取。' },
+            { calories: 173, name: '番茄薯仔豬肉湯', weight: '1碗', emoji: '🍅', nutrients: ['水分', '維生素', '碳水化合物', '蛋白質', '脂肪'], desc: '番茄和薯仔提供維生素和碳水化合物，豬肉含有蛋白質和脂肪。湯頭喝起來甜甜的，是常見的家常湯品。' },
+            { calories: 204, name: '豆腐番茄魚湯', weight: '1碗', emoji: '🍲', nutrients: ['水分', '蛋白質', '礦物質', '維生素'], desc: '豆腐含有植物性蛋白質和礦物質，魚肉含有蛋白質，番茄有維生素。油脂含量比較低，適合晚餐喝。' },
+            { calories: 64, name: '橙', weight: '1個', emoji: '🍊', nutrients: ['維生素', '水分', '膳食纖維'], desc: '含有維生素、水分和膳食纖維。直接吃果肉可以攝取到膳食纖維，是飯後不錯的水果。' },
+            { calories: 32, name: '士多啤梨', weight: '8粒', emoji: '🍓', nutrients: ['維生素', '水分'], desc: '含有維生素和水分。熱量低，當作飯後水果是不錯的選擇。' },
+            { calories: 204, name: '豬肉白菜水餃', weight: '6隻', emoji: '🥟', nutrients: ['碳水化合物', '蛋白質', '脂肪', '膳食纖維', '維生素', '礦物質'], desc: '水餃皮含有碳水化合物，內餡含有蛋白質、脂肪，白菜可補充膳食纖維和維生素。市售水餃的肥肉和鈉含量可能比較高，用白灼的方式煮，少沾點醬油會更好。' },
+            { calories: 91, name: '番茄炒蛋', weight: '半碗', emoji: '🍳', nutrients: ['蛋白質', '維生素', '脂肪'], desc: '番茄含有維生素，雞蛋含有蛋白質和脂肪。煮的時候油和糖放多放少，會影響這道菜的健康程度。' },
+            { calories: 150, name: '蜜糖雞翼', weight: '2隻', emoji: '🍗', nutrients: ['蛋白質', '脂肪'], desc: '雞翼含有蛋白質 and 脂肪。外層塗了蜂蜜（糖分），雞皮本身的脂肪也比較多。可以注意一下吃的份量。' },
+            { calories: 115, name: '彩椒牛柳', weight: '半碗', emoji: '🫑', nutrients: ['蛋白質', '維生素', '膳食纖維', '礦物質'], desc: '彩椒含有維生素和膳食纖維，牛肉含有蛋白質和礦物質（鐵質）。是營養還滿均衡的一道菜。' },
+            { calories: 175, name: '雜菜雞絲炒米粉', weight: '半碗', emoji: '🥢', nutrients: ['碳水化合物', '蛋白質', '膳食纖維', '維生素'], desc: '米粉提供碳水化合物，雞絲提供蛋白質，雜菜可以補充膳食纖維和維生素。炒的時候油放多放少，會影響這道菜的健康程度。' },
+            { calories: 50, name: '白灼蝦', weight: '5隻', emoji: '🦐', nutrients: ['蛋白質', '水分', '礦物質'], desc: '蝦子含有蛋白質、水分和礦物質。白灼的做法沒有額外加油，如果沾比較多醬油，鈉含量會跟著上升，可以留意一下。' }
+        ]
+    }
+];
+
+let currentStageIndex = 0;
+let currentSelected = [];
+let chosenFoodsHistory = [];
+
+let runningCalories = 0; 
+let caloriesHistory = { breakfast: 0, lunch: 0, activity: 0, teatime: 0, dinner: 0 };
+let stepControl = 1; 
+
+let fedItemsCount = 0;
+let feedingEquationText = "";
+const tooltipDom = document.getElementById('lunch-tooltip');
+
+window.onload = function() {
+    loadStage();
+};
+
+function updateCaloriesDisplay() {
+    document.getElementById('current-calories-display').innerText = `📈 目前體內累積熱量：${runningCalories} kcal`;
+}
+
+function loadStage() {
+    currentSelected = [];
+    document.getElementById('math-zone').style.display = 'none';
+    document.getElementById('feeding-zone').style.display = 'none';
+    document.getElementById('feedback-box').style.display = 'none';
+    document.getElementById('next-stage-btn').style.display = 'none';
+    document.getElementById('verify-btn').style.display = 'block';
+    
+    if(stages[currentStageIndex].name === 'lunch' || stages[currentStageIndex].name === 'dinner') {
+        stepControl = 1; 
+    }
+
+    for(let i=0; i<=5; i++) {
+        const node = document.getElementById(`node-${i}`);
+        if(i === currentStageIndex) node.classList.add('active');
+        else node.classList.remove('active');
+    }
+
+    const stage = stages[currentStageIndex];
+    document.getElementById('story-display').innerHTML = stage.story;
+    
+    if (stage.name === "teatime") {
+        let teatimeChoiceHtml = `
+            <div class="teatime-choice-box">
+                <button class="choice-btn yes" onclick="chooseTeatime(true)">🙋‍♂️ 想吃，選個點心</button>
+                <button class="choice-btn no" onclick="chooseTeatime(false)">🙅‍♂️ 不吃，跳過下午茶</button>
+            </div>
+            <div id="teatime-options-area" style="display:none;"></div>
+        `;
+        document.getElementById('game-play-zone').innerHTML = teatimeChoiceHtml;
+        return;
+    }
+
+    if (stage.type === "lunch-special") {
+        startLunchSpecialMode();
+    } else {
+        renderOptionsGrid();
+    }
+}
+
+function renderOptionsGrid() {
+    const stage = stages[currentStageIndex];
+    let requiredCount = stage.name === 'breakfast' || stage.name === 'dinner' ? 3 : 1;
+    let html = "";
+    
+    html += `<div class="section-title">${stage.type === 'food' ? `🍽️ 請選擇 ${requiredCount} 種食物：` : '🏃‍♂️ 請選擇 1 個活動項目：'}</div>`;
+    html += `<div class="grid" id="options-grid-box">`;
+    
+    stage.options.forEach((opt, idx) => {
+        let displayCalText = "";
+        let displayWeight = "";
+        
+        if (stage.name === "activity") {
+            displayCalText = `消耗 ${opt.baseCalories} kcal`;
+            displayWeight = `時間單位: 每30分鐘`;
+        } else {
+            displayCalText = `${opt.calories} kcal`;
+            displayWeight = `份量: ${opt.weight}`;
+        }
+
+        html += `
+            <div class="card" id="item-${idx}" onclick="selectItem(${idx})">
+                <div>
+                    <div class="emoji">${opt.emoji}</div>
+                    <div class="name">${opt.name}</div>
+                    <div class="weight">${displayWeight}</div>
+                </div>
+                <div>
+                    <div class="info">${displayCalText}</div>
+                </div>
+            </div>`;
+    });
+    html += `</div>`;
+
+    if (stage.name === "activity") {
+        html += `
+            <div id="dynamic-time-select-zone" class="time-select-container" style="display:none; margin-top:15px;">
+                ⏱️ <b>很好！請選擇持續時間：</b><br><br>
+                <select id="activity-duration-select" onchange="updateActivityTimeMultiplier(this.value)">
+                    <option value="1">30分鐘</option>
+                    <option value="2">1小時 (30分鐘 × 2)</option>
+                    <option value="3">1小時30分鐘 (30分鐘 × 3)</option>
+                    <option value="4">2小時 (30分鐘 × 4)</option>
+                </select>
+            </div>
+        `;
+    }
+
+    let actionBtnText = (stage.name === "activity") ? "準備好了，開始活動吧！" : "選好了，快來吃吧！";
+    html += `<button class="action-btn" id="lock-selection-btn" onclick="lockSelection()">${actionBtnText}</button>`;
+    
+    let targetArea = document.getElementById('teatime-options-area');
+    if (stage.name === "teatime" && targetArea) {
+        targetArea.innerHTML = html;
+        targetArea.style.display = 'block';
+    } else {
+        document.getElementById('game-play-zone').innerHTML = html;
+    }
+    updateCaloriesDisplay();
+}
+
+function updateActivityTimeMultiplier(val) {
+    const stage = stages[currentStageIndex];
+    stage.selectedMultiplier = parseInt(val);
+    
+    if (val === "1") stage.selectedDurationText = "30分鐘";
+    else if (val === "2") stage.selectedDurationText = "1小時";
+    else if (val === "3") stage.selectedDurationText = "1小時30分鐘";
+    else if (val === "4") stage.selectedDurationText = "2小時";
+}
+
+function startLunchSpecialMode() {
+    const stage = stages[currentStageIndex];
+    document.getElementById('game-play-zone').innerHTML = ""; 
+    const feedingZone = document.getElementById('feeding-zone');
+    feedingZone.style.display = 'flex';
+    
+    document.getElementById('mouth-target').className = "char-mouth-target";
+    document.getElementById('feeding-status').innerHTML = "👉 <b>請把滑鼠移到下方套餐看材料，再挑選一款拖進小明嘴巴裡！</b>";
+    document.getElementById('feeding-equation-display').innerText = "等候開飯中...";
+    
+    const holder = document.getElementById('draggable-food-holder');
+    holder.innerHTML = "";
+    
+    stage.options.forEach((item, idx) => {
+        const itemHtml = document.createElement('div');
+        itemHtml.className = "drag-food-item";
+        itemHtml.id = `lunch-opt-${idx}`;
+        itemHtml.draggable = true;
+        itemHtml.innerHTML = `
+            <span style="font-size:32px;">${item.emoji}</span>
+            <span>${item.name}</span>
+        `;
+        
+        itemHtml.onmouseover = (e) => showTooltip(item, e);
+        itemHtml.onmousemove = (e) => moveTooltip(e);
+        itemHtml.onmouseout = () => hideTooltip();
+        
+        itemHtml.ondragstart = (e) => {
+            e.dataTransfer.setData("text/plain", idx);
+            hideTooltip();
+        };
+        
+        holder.appendChild(itemHtml);
+    });
+    updateCaloriesDisplay();
+}
+
+function showTooltip(item, e) {
+    tooltipDom.innerHTML = `
+        <div class="tooltip-title">🥗 ${item.name}</div>
+        <div style="color: #cbd5e1; font-size:12px; margin-bottom:5px;">包含以下細項：</div>
+        <div>${item.setDetails}</div>
+    `;
+    tooltipDom.className = "lunch-tooltip visible";
+    moveTooltip(e);
+}
+
+function moveTooltip(e) {
+    tooltipDom.style.left = (e.pageX + 15) + 'px';
+    tooltipDom.style.top = (e.pageY - 15) + 'px';
+}
+
+function hideTooltip() {
+    tooltipDom.className = "lunch-tooltip";
+}
+
+function chooseTeatime(wantsToEat) {
+    if (wantsToEat) {
+        renderOptionsGrid();
+    } else {
+        caloriesHistory["teatime"] = 0;
+        alert("小明決定克制自己，不吃下午茶！直接前往晚餐階段 🌌");
+        currentStageIndex = 4; 
+        loadStage();
+    }
+}
+
+function selectItem(idx) {
+    const stage = stages[currentStageIndex];
+    let opt = stage.options[idx];
+    
+    const card = document.getElementById(`item-${idx}`);
+    
+    if (stage.name === "activity") {
+        stage.options.forEach((_, i) => document.getElementById(`item-${i}`).classList.remove('selected'));
+        
+        currentSelected = [{
+            name: opt.name,
+            emoji: opt.emoji,
+            baseCalories: opt.baseCalories,
+            desc: opt.desc,
+            isActivity: true
+        }];
+        card.classList.add('selected');
+        
+        const timeZone = document.getElementById('dynamic-time-select-zone');
+        if(timeZone) {
+            timeZone.style.display = "block";
+            document.getElementById('activity-duration-select').value = "1";
+            stage.selectedMultiplier = 1;
+            stage.selectedDurationText = "30分鐘";
+        }
+        return;
+    }
+
+    const foundIdx = currentSelected.findIndex(item => item.name === opt.name);
+    if (foundIdx > -1) {
+        currentSelected.splice(foundIdx, 1);
+        card.classList.remove('selected');
+    } else {
+        let requiredCount = stage.name === 'breakfast' || stage.name === 'dinner' ? 3 : 1;
+        if (requiredCount === 3) {
+            if (currentSelected.length >= 3) {
+                alert("選剛好 3 種就可以囉！");
+                return;
+            }
+        } else {
+            stage.options.forEach((_, i) => document.getElementById(`item-${i}`).classList.remove('selected'));
+            currentSelected = [];
+        }
+        currentSelected.push(opt);
+        card.classList.add('selected');
+    }
+}
+
+function lockSelection() {
+    const stage = stages[currentStageIndex];
+    let requiredCount = stage.name === 'breakfast' || stage.name === 'dinner' ? 3 : 1;
+    
+    if (currentSelected.length !== requiredCount) {
+        alert(`請務必選擇剛好 ${requiredCount} 個項目！`);
+        return;
+    }
+    
+    if (stage.type === "food" && requiredCount === 3) {
+        startDragFeedingMode();
+    } else {
+        showMathZoneDirectly();
+    }
+}
+
+function startDragFeedingMode() {
+    fedItemsCount = 0;
+    feedingEquationText = "";
+    
+    document.getElementById('game-play-zone').innerHTML = ""; 
+    const feedingZone = document.getElementById('feeding-zone');
+    feedingZone.style.display = 'flex';
+    
+    document.getElementById('mouth-target').className = "char-mouth-target";
+    document.getElementById('feeding-status').innerHTML = "👉 <b>請用滑鼠按住下方食物，拖拽到小明的嘴巴裡釋放！</b>";
+    document.getElementById('feeding-equation-display').innerText = "算式準備中...";
+    
+    const holder = document.getElementById('draggable-food-holder');
+    holder.innerHTML = "";
+    
+    currentSelected.forEach((item, idx) => {
+        holder.innerHTML += `
+            <div class="drag-food-item" id="drag-food-${idx}" draggable="true" ondragstart="dragStart(event, ${idx})">
+                <span style="font-size:24px;">${item.emoji}</span> ${item.name}
+                <span class="food-cal">${item.calories} kcal</span>
+            </div>`;
+    });
+    
+    feedingZone.scrollIntoView({ behavior: 'smooth' });
+}
+
+function dragStart(ev, index) {
+    ev.dataTransfer.setData("text/plain", index);
+}
+
+function allowDrop(ev) {
+    ev.preventDefault();
+}
+
+function dragEnter(ev) {
+    ev.preventDefault();
+    document.getElementById('mouth-target').classList.add('drag-over');
+}
+
+function dragLeave(ev) {
+    document.getElementById('mouth-target').classList.remove('drag-over');
+}
+
+function dropFood(ev) {
+    ev.preventDefault();
+    const mouth = document.getElementById('mouth-target');
+    mouth.classList.remove('drag-over');
+    
+    const index = ev.dataTransfer.getData("text/plain");
+    if (index === "") return;
+    
+    const stage = stages[currentStageIndex];
+    
+    if (stage.type === "lunch-special") {
+        const item = stage.options[index];
+        const foodDom = document.getElementById(`lunch-opt-${index}`);
+        if (foodDom.classList.contains('fed')) return;
+        
+        stage.options.forEach((_, i) => {
+            document.getElementById(`lunch-opt-${i}`).classList.add('fed');
+        });
+        
+        currentSelected = [item]; 
+        document.getElementById('feeding-equation-display').innerText = item.mathFormula.replace(" = ", "");
+        document.getElementById('feeding-status').innerHTML = `🎉 小明把整個「${item.name}」一口吃掉囉！`;
+        mouth.classList.add('eating');
+        
+        setTimeout(() => {
+            mouth.classList.remove('eating');
+            showLunchMathZone(item);
+        }, 500);
+        return;
+    }
+    
+    const foodDom = document.getElementById('drag-food-' + index);
+    if (foodDom.classList.contains('fed')) return; 
+    
+    foodDom.classList.add('fed');
+    foodDom.setAttribute('draggable', 'false');
+    
+    const item = currentSelected[index];
+    fedItemsCount++;
+    
+    if (feedingEquationText === "") {
+        feedingEquationText = `${item.calories}`;
+    } else {
+        feedingEquationText += ` + ${item.calories}`;
+    }
+    
+    document.getElementById('feeding-equation-display').innerText = feedingEquationText;
+    document.getElementById('feeding-status').innerText = `小明咬到了 ${item.name}！ (${fedItemsCount}/3)`;
+    mouth.classList.add('eating');
+    
+    setTimeout(() => {
+        mouth.classList.remove('eating');
+        if (fedItemsCount === 3) {
+            document.getElementById('feeding-status').innerHTML = "✨ <b>全吃光啦！請到下方填寫計算答案！</b>";
+            showMathZoneAfterFeeding();
+        }
+    }, 500);
+}
+
+function showLunchMathZone(lunchItem) {
+    const stage = stages[currentStageIndex];
+    document.getElementById('math-title').innerText = "請計算午餐套餐材料的卡路里總和：";
+    const linesHolder = document.getElementById('math-lines-holder');
+    
+    linesHolder.innerHTML = `
+        <div class="sub-math-row">
+            <div class="equation">${lunchItem.mathFormula}</div>
+            <input type="number" id="ans-primary" placeholder="套餐總熱量">
+        </div>
+    `;
+    document.getElementById('math-zone').style.display = 'block';
+    document.getElementById('math-zone').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showMathZoneAfterFeeding() {
+    const stage = stages[currentStageIndex];
+    document.getElementById('math-title').innerText = stage.mathTitle;
+    const linesHolder = document.getElementById('math-lines-holder');
+    linesHolder.innerHTML = `
+        <div class="sub-math-row">
+            <div class="equation">${feedingEquationText} = </div>
+            <input type="number" id="ans-primary" placeholder="答案">
+        </div>
+    `;
+    document.getElementById('math-zone').style.display = 'block';
+    document.getElementById('math-zone').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showMathZoneDirectly() {
+    const stage = stages[currentStageIndex];
+    document.getElementById('math-title').innerText = stage.mathTitle;
+    const linesHolder = document.getElementById('math-lines-holder');
+    linesHolder.innerHTML = '';
+    
+    if (stage.name === "activity") {
+        const item = currentSelected[0];
+        let displayFormula = "";
+        
+        displayFormula = `${runningCalories} - (${item.baseCalories} × ${stage.selectedMultiplier}) = `;
+
+        linesHolder.innerHTML = `
+            <div class="sub-math-row">
+                <div class="equation">${displayFormula}</div>
+                <input type="number" id="ans-primary" placeholder="累積熱量">
+            </div>
+        `;
+    } 
+    else if (stage.name === "teatime") {
+        linesHolder.innerHTML = `
+            <div class="sub-math-row">
+                <div class="equation">${runningCalories} + ${currentSelected[0].calories} = </div>
+                <input type="number" id="ans-primary" placeholder="答案">
+            </div>
+        `;
+    }
+    
+    document.getElementById('math-zone').style.display = 'block';
+    document.getElementById('math-zone').scrollIntoView({ behavior: 'smooth' });
+}
+
+function checkStageAnswer() {
+    const stage = stages[currentStageIndex];
+    const feedbackBox = document.getElementById('feedback-box');
+    const linesHolder = document.getElementById('math-lines-holder');
+    feedbackBox.style.display = 'block';
+    
+    let currentSum = 0;
+    if (stage.name === "activity") {
+        currentSum = currentSelected[0].baseCalories * stage.selectedMultiplier;
+    } else {
+        currentSum = currentSelected.reduce((s, item) => s + (item.calories || 0), 0);
+    }
+    
+    if (stage.type === "lunch-special") {
+        if (stepControl === 1) {
+            let mainUserAns = parseInt(document.getElementById('ans-primary').value);
+            if (mainUserAns !== currentSum) {
+                feedbackBox.className = "feedback error";
+                feedbackBox.innerHTML = `❌ <b>套餐材料總和算錯囉！</b><br>提示：請仔細加總算式左側的三個材料熱量。`;
+                return;
+            }
+            
+            caloriesHistory[stage.name] = currentSum;
+            document.getElementById('ans-primary').disabled = true;
+            stepControl = 2;
+            
+            feedbackBox.className = "feedback success";
+            feedbackBox.innerHTML = `🎉 <b>第一步材料加總正確！</b> 請完成第二步：加上午餐後的累積熱量：`;
+            
+            const nextLine = document.createElement('div');
+            nextLine.className = "sub-math-row";
+            nextLine.style.marginTop = "15px";
+            nextLine.style.borderTop = "1px dashed #9333ea";
+            nextLine.style.paddingTop = "15px";
+            
+            nextLine.innerHTML = `
+                <div class="equation">${runningCalories} + ${caloriesHistory[stage.name]} = </div>
+                <input type="number" id="ans-mid-sum" placeholder="累積熱量">
+            `;
+            linesHolder.appendChild(nextLine);
+            nextLine.scrollIntoView({ behavior: 'smooth' });
+            return;
+        } 
+        else if (stepControl === 2) {
+            let userMidSum = parseInt(document.getElementById('ans-mid-sum').value);
+            let correctMidSum = runningCalories + caloriesHistory[stage.name];
+            
+            if (userMidSum !== correctMidSum) {
+                feedbackBox.className = "feedback error";
+                feedbackBox.innerHTML = `❌ <b>加上午餐後的累積熱量計算錯囉！</b><br>提示：請重新計算先前體內累積熱量 ${runningCalories} 加上這頓午餐 ${caloriesHistory[stage.name]} 的數值。`;
+                return;
+            }
+            
+            runningCalories = correctMidSum;
+            feedbackBox.className = "feedback success";
+            feedbackBox.innerHTML = `🎉 <b>太棒了！兩步驟都計算正確！小明順利吸收了美味午餐！</b>`;
+            updateCaloriesDisplay();
+            
+            currentSelected.forEach(item => chosenFoodsHistory.push(item));
+            document.getElementById('verify-btn').style.display = 'none';
+            document.getElementById('next-stage-btn').style.display = 'block';
+            feedbackBox.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+    }
+
+    if (stage.name === "dinner") {
+        if (stepControl === 1) {
+            let mainUserAns = parseInt(document.getElementById('ans-primary').value);
+            if (mainUserAns !== currentSum) {
+                feedbackBox.className = "feedback error";
+                feedbackBox.innerHTML = `❌ <b>晚餐總和算錯囉！</b><br>提示：請重新檢查拖進嘴裡的這三個食物卡路里總和。`;
+                return;
+            }
+            
+            caloriesHistory[stage.name] = currentSum;
+            document.getElementById('ans-primary').disabled = true;
+            stepControl = 2;
+            
+            feedbackBox.className = "feedback success";
+            feedbackBox.innerHTML = `🎉 <b>晚餐加總正確！</b> 請繼續計算下一步：把剛吃下去的熱量加上目前體內累積熱量：`;
+            
+            const nextLine = document.createElement('div');
+            nextLine.className = "sub-math-row";
+            nextLine.style.marginTop = "15px";
+            nextLine.style.borderTop = "1px dashed #9333ea";
+            nextLine.style.paddingTop = "15px";
+            
+            nextLine.innerHTML = `
+                <div class="equation">${runningCalories} + ${caloriesHistory[stage.name]} = </div>
+                <input type="number" id="ans-mid-sum" placeholder="總和">
+            `;
+            linesHolder.appendChild(nextLine);
+            nextLine.scrollIntoView({ behavior: 'smooth' });
+            return;
+        } 
+        else if (stepControl === 2) {
+            let userMidSum = parseInt(document.getElementById('ans-mid-sum').value);
+            let correctMidSum = runningCalories + caloriesHistory[stage.name];
+            
+            if (userMidSum !== correctMidSum) {
+                feedbackBox.className = "feedback error";
+                feedbackBox.innerHTML = `❌ <b>算錯囉！</b><br>提示：請重新計算 ${runningCalories} + ${caloriesHistory[stage.name]} 的合併總熱量。`;
+                return;
+            }
+            
+            runningCalories = correctMidSum;
+            feedbackBox.className = "feedback success";
+            feedbackBox.innerHTML = `🎉 <b>太棒了！晚餐累積計算完全正確！</b>`;
+            updateCaloriesDisplay();
+            
+            currentSelected.forEach(item => chosenFoodsHistory.push(item));
+            document.getElementById('verify-btn').style.display = 'none';
+            document.getElementById('next-stage-btn').style.display = 'block';
+            feedbackBox.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+    }
+
+    let mainUserAns = parseInt(document.getElementById('ans-primary').value);
+    let correctAns = 0;
+    
+    if (stage.name === "breakfast") correctAns = currentSum;
+    else if (stage.name === "activity") correctAns = runningCalories - currentSum;
+    else if (stage.name === "teatime") correctAns = runningCalories + currentSum;
+    
+    if (mainUserAns !== correctAns) {
+        feedbackBox.className = "feedback error";
+        if (stage.name === "activity") {
+            feedbackBox.innerHTML = `❌ <b>活動後的累積熱量算錯囉！</b><br>提示：請手動將（30分鐘 ${currentSelected[0].baseCalories} × 時間倍數 ${stage.selectedMultiplier}）算出來，再用原本的體內熱量 ${runningCalories} 去扣除喔。`;
+        } else {
+            feedbackBox.innerHTML = `❌ <b>計算結果不正確喔！</b><br>提示：請再細心算一下！`;
+        }
+        return;
+    }
+    
+    if (stage.name === "activity") {
+        caloriesHistory[stage.name] = currentSum; 
+    } else {
+        caloriesHistory[stage.name] = currentSum;
+    }
+    
+    runningCalories = correctAns;
+    
+    feedbackBox.className = "feedback success";
+    feedbackBox.innerHTML = `🎉 <b>太棒了！數值與計算完全正確！</b>`;
+    updateCaloriesDisplay();
+
+    if (stage.name === "activity") {
+        chosenFoodsHistory.push({
+            name: `${currentSelected[0].name} (${stage.selectedDurationText})`,
+            emoji: currentSelected[0].emoji,
+            desc: currentSelected[0].desc,
+            isActivity: true
+        });
+    } else {
+        currentSelected.forEach(item => chosenFoodsHistory.push(item));
+    }
+    
+    document.getElementById('verify-btn').style.display = 'none';
+    document.getElementById('next-stage-btn').style.display = 'block';
+    feedbackBox.scrollIntoView({ behavior: 'smooth' });
+}
+
+function goToNextStage() {
+    if (stages[currentStageIndex].name === "teatime") {
+        currentStageIndex = 4; 
+    } else {
+        currentStageIndex++;
+    }
+
+    if (currentStageIndex < stages.length) {
+        loadStage();
+    } else {
+        showFinalSummary();
+    }
+}
+
+function showFinalSummary() {
+    for(let i=0; i<=5; i++) {
+        document.getElementById(`node-${i}`).classList.remove('active');
+    }
+    document.getElementById('node-5').classList.add('active');
+    
+    document.getElementById('story-display').innerHTML = `🏆 <b>全日大功告成！</b><br>快來看看小明今天的熱量總整理，還有你為他挑選的每一個食物背後的小祕密！點擊你今天選過的任一項目，就能解鎖詳細的營養分析與健康介紹喔！`;
+    document.getElementById('game-play-zone').innerHTML = '';
+    document.getElementById('feeding-zone').style.display = 'none';
+    document.getElementById('math-zone').style.display = 'none';
+    
+    const feedbackBox = document.getElementById('feedback-box');
+    feedbackBox.style.display = 'block';
+    feedbackBox.className = "feedback success";
+    
+    let foodListHTML = `<p style="margin-top:20px; font-weight:bold; color:#1e293b;">🔍 <b>互動小實驗：</b>點擊下方你今天選過的任何一種項目，就能解鎖查看更多秘密喔！</p>`;
+    foodListHTML += `<div class="summary-food-list">`;
+    chosenFoodsHistory.forEach((food, idx) => {
+        foodListHTML += `
+            <div class="summary-food-item" onclick="showNutrientDetails(${idx})">
+                <span>${food.emoji}</span>
+                <span>${food.name}</span>
+            </div>`;
+    });
+    foodListHTML += `</div>`;
+    foodListHTML += `<div id="nutrient-detail-box" class="nutrient-display-box"></div>`;
+
+    feedbackBox.innerHTML = `
+        <h2>📊 小明的一日數據總結報告</h2>
+        <p>🌅 早餐吸收：<b>+ ${caloriesHistory.breakfast} kcal</b></p>
+        <p>🌆 午餐吸收：<b>+ ${caloriesHistory.lunch} kcal</b></p>
+        <p>🏃‍♂️ 活動消耗：<b>- ${caloriesHistory.activity} kcal</b></p>
+        <p>☕ 下午茶吸收：<b>+ ${caloriesHistory.teatime} kcal</b></p>
+        <p>🌌 晚餐吸收：<b>+ ${caloriesHistory.dinner} kcal</b></p>
+        <hr style="border:1px dashed #22c55e; margin: 15px 0;">
+        <p style="font-size:22px; color:#1e3a8a; font-weight:bold;">🏆 今天小明累積淨熱量：${runningCalories} kcal</p>
+        ${foodListHTML}
+        <button class="action-btn" onclick="restartGame()" style="background-color: #ef4444; margin-top:20px;">🔄 重新開始新的一天</button>
+    `;
+    
+    document.getElementById('next-stage-btn').style.display = 'none';
+    feedbackBox.scrollIntoView({ behavior: 'smooth' });
+}
+
+function showNutrientDetails(idx) {
+    const food = chosenFoodsHistory[idx];
+    const detailBox = document.getElementById('nutrient-detail-box');
+    detailBox.style.display = "block";
+    
+    let tagsHtml = "";
+    
+    // 如果是食物，處理標籤
+    if (food.nutrients && food.nutrients.length > 0) {
+        food.nutrients.forEach(nut => {
+            tagsHtml += `<span class="nutrient-tag">✨ ${nut}</span>`;
+        });
+    } else if (food.isActivity) {
+        tagsHtml = `<span class="nutrient-tag" style="background:#fef3c7; color:#d97706; border-color:#fde68a;">🏃 課後活動</span>`;
+    }
+
+    // 重點修正：這裡同時輸出營養素標籤與小三水平的詳細文字介紹
+    detailBox.innerHTML = `
+        <div class="nutrient-title">🔍 ${food.emoji} ${food.name} 的健康小檔案：</div>
+        <div>${tagsHtml}</div>
+        <div class="nutrient-desc">${food.desc || '這個項目能為生活提供活力與滿滿能量喔！'}</div>
+    `;
+}
+
+function restartGame() {
+    location.reload();
+}
+</script>
+
+</body>
+</html>
